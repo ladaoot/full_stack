@@ -1,1 +1,40 @@
 node_modules
+
+# frontend
+frontend/node_modules
+frontend/dist
+frontend/.cache
+
+# backend
+backend/.venv/
+backend/__pycache__/
+**/__pycache__/
+**/__init__.py
+*.py[cod]
+*.pyd
+*.pyo
+.Python
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.tox/
+backend/.coverage
+backend/coverage.xml
+backend/build/
+backend/dist/
+
+# env and local configs
+.env
+.env.*
+
+# OS/editor junk
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
