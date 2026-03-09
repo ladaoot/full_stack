@@ -56,6 +56,8 @@ class Article(BaseModel):
     id: UUID
     title: str
     abstract: Optional[str] = None
+    pdf_url: Optional[str] = None
+    pdf_filename: Optional[str] = None
     tags: List[str] = []
     citations: List[Citation] = []
     created_at: Optional[str] = None
@@ -97,6 +99,8 @@ class Article(BaseModel):
 class ArticleCreate(BaseModel):
     title: str
     abstract: Optional[str] = None
+    pdf_url: Optional[str] = None
+    pdf_filename: Optional[str] = None
     tags: List[str] = []
     citations: List[Citation] = []
     @field_validator("title")
@@ -136,6 +140,8 @@ class ArticleCreate(BaseModel):
 class ArticleUpdate(BaseModel):
     title: Optional[str] = None
     abstract: Optional[str] = None
+    pdf_url: Optional[str] = None
+    pdf_filename: Optional[str] = None
     tags: Optional[List[str]] = None
     citations: Optional[List[Citation]] = None
     @field_validator("title")
