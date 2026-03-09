@@ -60,8 +60,8 @@ class Article(BaseModel):
     pdf_filename: Optional[str] = None
     tags: List[str] = []
     citations: List[Citation] = []
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     @field_validator("title")
     @classmethod
     def validate_title(cls, v: str) -> str:
