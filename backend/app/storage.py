@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional
 from uuid import UUID, uuid4
 from datetime import datetime, timezone
+from fastapi import HTTPException
 from .schemas import Article, ArticleCreate, ArticleUpdate, Tag, TagCreate
 
 
@@ -64,6 +65,10 @@ class Storage:
         return self.tags.get(tag_id)
 
     def create_tag(self, payload: TagCreate) -> Tag:
+        # Проверка на уникальность имени тега
+        for existing in self.tags.values():
+            if existing.name.lower() == payload.name.lower():
+                raise HTTPException(status_code=400, detail="Tag with this name already exists")
         tid = uuid4()
         tag = Tag(id=tid, name=payload.name, color=payload.color)
         self.tags[tid] = tag

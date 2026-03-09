@@ -6,7 +6,7 @@ frontend/dist
 frontend/.cache
 
 # backend
-backend/.venv/
+**/.venv/
 backend/__pycache__/
 **/__pycache__/
 **/__init__.py
