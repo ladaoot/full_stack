@@ -3,22 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from .routers import health
-from .routers import articles, tags, files
-from .database import Base, engine
+from .routers import articles, tags
 
 app = FastAPI(title="Научная библиотека API", version="0.1.0")
-
-@app.on_event("startup")
-async def startup():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    
-    # Ensure S3 bucket exists on startup
-    from .s3 import s3_service
-    try:
-        await s3_service.ensure_bucket_exists()
-    except Exception as e:
-        print(f"Warning: S3 bucket setup failed: {e}")
 
 app.add_middleware(
     CORSMiddleware,
@@ -31,7 +18,6 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(articles.router)
 app.include_router(tags.router)
-app.include_router(files.router)
 
 @app.get("/", summary="API root")
 def root():
