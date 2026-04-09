@@ -7,6 +7,7 @@ class Citation(BaseModel):
     id: UUID
     text: str
     page: Optional[int] = None
+    created_at: Optional[datetime] = None
     @field_validator("text")
     @classmethod
     def validate_text(cls, v: str) -> str:
@@ -52,14 +53,46 @@ class TagCreate(BaseModel):
             raise ValueError("Tag name is too long")
         return v
 
+class User(BaseModel):
+    id: UUID
+    email: str
+    name: str
+    affiliation: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+class UserCreate(BaseModel):
+    email: str
+    password: str
+    name: str
+    affiliation: Optional[str] = None
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    user_id: Optional[str] = None
+
 class Article(BaseModel):
     id: UUID
     title: str
+    authors: List[str] = []
+    year: Optional[int] = None
     abstract: Optional[str] = None
+    doi: Optional[str] = None
+    journal: Optional[str] = None
+    volume: Optional[str] = None
+    pages: Optional[str] = None
     pdf_url: Optional[str] = None
     pdf_filename: Optional[str] = None
-    tags: List[str] = []
+    s3_filename: Optional[str] = None
+    tags: List[Tag] = []
     citations: List[Citation] = []
+    user_id: Optional[UUID] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     @field_validator("title")
@@ -68,7 +101,7 @@ class Article(BaseModel):
         v = (v or "").strip()
         if len(v) < 3:
             raise ValueError("Title must be at least 3 characters")
-        if len(v) > 200:
+        if len(v) > 500:
             raise ValueError("Title is too long")
         return v
     @field_validator("abstract")
@@ -82,34 +115,35 @@ class Article(BaseModel):
         return v
     @field_validator("tags")
     @classmethod
-    def validate_tags(cls, v: List[str]) -> List[str]:
-        seen = set()
-        out: List[str] = []
-        for t in v or []:
-            t = (t or "").strip()
-            if not t:
-                raise ValueError("Tag value must not be empty")
-            if len(t) > 64:
-                raise ValueError("Tag value is too long")
-            if t not in seen:
-                seen.add(t)
-                out.append(t)
-        return out
+    def validate_tags(cls, v: List[Tag]) -> List[Tag]:
+        return v # No change needed for object list for now
+
+class CitationCreate(BaseModel):
+    text: str
+    page: Optional[int] = None
 
 class ArticleCreate(BaseModel):
     title: str
+    authors: List[str] = []
+    year: Optional[int] = None
     abstract: Optional[str] = None
+    doi: Optional[str] = None
+    journal: Optional[str] = None
+    volume: Optional[str] = None
+    pages: Optional[str] = None
     pdf_url: Optional[str] = None
     pdf_filename: Optional[str] = None
-    tags: List[str] = []
-    citations: List[Citation] = []
+    s3_filename: Optional[str] = None
+    tags: List[TagCreate] = []
+    citations: List[CitationCreate] = []
+    user_id: Optional[UUID] = None
     @field_validator("title")
     @classmethod
     def validate_title(cls, v: str) -> str:
         v = (v or "").strip()
         if len(v) < 3:
             raise ValueError("Title must be at least 3 characters")
-        if len(v) > 200:
+        if len(v) > 500:
             raise ValueError("Title is too long")
         return v
     @field_validator("abstract")
@@ -123,27 +157,36 @@ class ArticleCreate(BaseModel):
         return v
     @field_validator("tags")
     @classmethod
-    def validate_tags(cls, v: List[str]) -> List[str]:
+    def validate_tags(cls, v: List[TagCreate]) -> List[TagCreate]:
+        return v # No change needed for now
+    @field_validator("authors")
+    @classmethod
+    def validate_authors(cls, v: List[str]) -> List[str]:
         seen = set()
         out: List[str] = []
-        for t in v or []:
-            t = (t or "").strip()
-            if not t:
-                raise ValueError("Tag value must not be empty")
-            if len(t) > 64:
-                raise ValueError("Tag value is too long")
-            if t not in seen:
-                seen.add(t)
-                out.append(t)
+        for a in v or []:
+            a = (a or "").strip()
+            if not a:
+                continue
+            if a not in seen:
+                seen.add(a)
+                out.append(a)
         return out
 
 class ArticleUpdate(BaseModel):
     title: Optional[str] = None
+    authors: Optional[List[str]] = None
+    year: Optional[int] = None
     abstract: Optional[str] = None
+    doi: Optional[str] = None
+    journal: Optional[str] = None
+    volume: Optional[str] = None
+    pages: Optional[str] = None
     pdf_url: Optional[str] = None
     pdf_filename: Optional[str] = None
-    tags: Optional[List[str]] = None
-    citations: Optional[List[Citation]] = None
+    s3_filename: Optional[str] = None
+    tags: Optional[List[TagCreate]] = None
+    citations: Optional[List[CitationCreate]] = None
     @field_validator("title")
     @classmethod
     def validate_title(cls, v: Optional[str]) -> Optional[str]:
@@ -152,7 +195,7 @@ class ArticleUpdate(BaseModel):
         v = v.strip()
         if len(v) < 3:
             raise ValueError("Title must be at least 3 characters")
-        if len(v) > 200:
+        if len(v) > 500:
             raise ValueError("Title is too long")
         return v
     @field_validator("abstract")
@@ -166,18 +209,20 @@ class ArticleUpdate(BaseModel):
         return v
     @field_validator("tags")
     @classmethod
-    def validate_tags(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+    def validate_tags(cls, v: Optional[List[TagCreate]]) -> Optional[List[TagCreate]]:
+        return v # No change needed for now
+    @field_validator("authors")
+    @classmethod
+    def validate_authors(cls, v: Optional[List[str]]) -> Optional[List[str]]:
         if v is None:
             return v
         seen = set()
         out: List[str] = []
-        for t in v or []:
-            t = (t or "").strip()
-            if not t:
-                raise ValueError("Tag value must not be empty")
-            if len(t) > 64:
-                raise ValueError("Tag value is too long")
-            if t not in seen:
-                seen.add(t)
-                out.append(t)
+        for a in v or []:
+            a = (a or "").strip()
+            if not a:
+                continue
+            if a not in seen:
+                seen.add(a)
+                out.append(a)
         return out

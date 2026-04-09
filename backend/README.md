@@ -8,8 +8,8 @@
   - `.\.venv\Scripts\activate` (Windows, если использовали venv)
   - `pip install -r requirements.txt`
 - Старт сервера:
-  - `uvicorn app.main:app --reload --port 8000`
-  - Откройте: `http://localhost:8000/docs` (Swagger UI)
+  - `uvicorn app.main:app --reload --port 8080`
+  - Откройте: `http://localhost:8080/docs` (Swagger UI)
 
 ## Эндпоинты (без авторизации, in-memory)
 - `GET /health` — состояние сервиса

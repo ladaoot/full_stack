@@ -19,10 +19,13 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { api } from '../utils/api';
+import { logger } from '../utils/logger';
+
 export const ArticleViewPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { articles } = useArticles();
+  const { articles, updateArticle } = useArticles();
 
   const article = articles.find(a => a.id === id);
 
@@ -53,83 +56,74 @@ export const ArticleViewPage = () => {
   });
 
   const handleSaveMetadata = () => {
-    const meta = {
-      id: article.id,
-      title: article.title,
-      year: article.year,
-      authors: article.authors,
-      abstract: article.abstract,
-      tags: article.tags.map(t => ({ id: t.id, name: t.name, color: t.color })),
-      doi: article.doi,
-      journal: article.journal,
-      volume: article.volume,
-      pages: article.pages,
-      citations: article.citations.map(c => ({
-        id: c.id,
-        text: c.text,
-        page: c.page,
-        createdAt: c.createdAt
-      })),
-      createdAt: article.createdAt,
-      updatedAt: article.updatedAt,
-      pdfFileName: article.pdfFileName,
-      pdfUrl: article.pdfUrl
-    };
-    const blob = new Blob([JSON.stringify(meta, null, 2)], { type: 'application/json;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    const safeTitle = article.title.substring(0, 50).replace(/[^а-яА-Яa-zA-Z0-9\\s]/g, '');
-    link.href = url;
-    link.download = `metadata_${safeTitle || 'article'}.json`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    toast.success('Метаданные сохранены');
-  };
+    // Форматируем метаданные в читаемый текстовый формат
+    const metadataText = `
+РЕЗУЛЬТАТЫ ИЗВЛЕЧЕНИЯ МЕТАДАННЫХ
 
-  const handleDownloadAbstract = () => {
-    // Формируем текст рефератa
-    const abstractText = `
-РЕФЕРАТ
-
-Название: ${article.title}
-
-Авторы: ${article.authors.join(', ')}
-
-Год публикации: ${article.year}
-
-${article.journal ? `Журнал: ${article.journal}${article.volume ? `, том ${article.volume}` : ''}${article.pages ? `, стр. ${article.pages}` : ''}` : ''}
-
-${article.doi ? `DOI: ${article.doi}` : ''}
-
+НАЗВАНИЕ: ${article.title}
+АВТОРЫ: ${article.authors.join(', ') || 'Не указаны'}
+ГОД: ${article.year || 'Не указан'}
+ЖУРНАЛ: ${article.journal || 'Не указан'}
+DOI: ${article.doi || 'Не указан'}
+${article.volume ? `ТОМ: ${article.volume}\n` : ''}${article.pages ? `СТРАНИЦЫ: ${article.pages}\n` : ''}
 АННОТАЦИЯ:
-${article.abstract}
+${article.abstract || 'Нет описания'}
 
-${article.tags.length > 0 ? `\nКЛЮЧЕВЫЕ СЛОВА: ${article.tags.map(t => t.name).join(', ')}` : ''}
+ТЕГИ: ${article.tags.map(t => t.name).join(', ') || 'Нет тегов'}
 
-${article.citations.length > 0 ? `\n\nЦИТАТЫ:\n${article.citations.map((citation, index) => `\n${index + 1}. ${citation.text}${citation.page ? ` (стр. ${citation.page})` : ''}`).join('\n')}` : ''}
+ЦИТАТЫ:
+${article.citations.length > 0 
+  ? article.citations.map((c, i) => `${i + 1}. ${c.text}${c.page ? ` (стр. ${c.page})` : ''}`).join('\n')
+  : 'Нет цитат'}
 
 ---
-Реферат сгенерирован ${new Date().toLocaleDateString('ru-RU')}
+Дата экспорта: ${new Date().toLocaleString('ru-RU')}
     `.trim();
 
-    // Создаем blob и скачиваем файл
-    const blob = new Blob([abstractText], { type: 'text/plain;charset=utf-8' });
+    const blob = new Blob([metadataText], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
+    const safeTitle = article.title.substring(0, 50).replace(/[^а-яА-Яa-zA-Z0-9\s]/g, '');
     link.href = url;
-    
-    // Формируем имя файла из названия статьи
-    const fileName = `Реферат_${article.title.substring(0, 50).replace(/[^а-яА-Яa-zA-Z0-9\s]/g, '')}.txt`;
-    link.download = fileName;
-    
+    link.download = `metadata_${safeTitle || 'article'}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+    toast.success('Метаданные сохранены в формате .txt');
+  };
 
-    toast.success('Реферат успешно скачан');
+  const handleGenerateSummary = async () => {
+    if (!article) return;
+    
+    try {
+      logger.info(`Starting summary generation for article: ${article.id}`);
+      toast.info('Генерация реферата с помощью ИИ...');
+      
+      const blob = await api.summarizeText(article.id);
+      
+      if (blob) {
+        logger.info('Summary generation successful, downloading file');
+        
+        // Создаем ссылку для скачивания файла
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const safeTitle = article.title.substring(0, 50).replace(/[^а-яА-Яa-zA-Z0-9\s]/g, '');
+        link.download = `Реферат_${safeTitle || 'article'}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        toast.success('Реферат успешно сгенерирован и скачан!');
+      } else {
+        logger.warn('Summary generation returned empty response');
+      }
+    } catch (error: any) {
+      logger.error('Error generating summary:', error);
+      toast.error('Ошибка при генерации реферата');
+    }
   };
 
   return (
@@ -172,7 +166,7 @@ ${article.citations.length > 0 ? `\n\nЦИТАТЫ:\n${article.citations.map((ci
                     Скачать
                   </a>
                 </Button>
-                <Button form="add-article-form" variant="outline" className="gap-2 rounded-full px-6" onClick={handleDownloadAbstract}>
+                <Button form="add-article-form" variant="outline" className="gap-2 rounded-full px-6" onClick={handleGenerateSummary}>
                   Создать реферат
                 </Button>
                 <Button form="add-article-form" variant="outline" className="gap-2 rounded-full px-6" onClick={handleSaveMetadata}>

@@ -17,17 +17,20 @@ import { Citation, Tag } from '../types';
 import { toast } from 'sonner';
 import { Link } from 'react-router';
 import { Alert, AlertDescription } from '../components/ui/alert';
+import { api } from '../utils/api';
 
 export const EditArticlePage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getArticleById, updateArticle, deleteArticle } = useArticles();
+  const { getArticleById, updateArticle, deleteArticle, isLoading } = useArticles();
   const { user } = useAuth();
 
   const article = id ? getArticleById(id) : undefined;
 
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
+  const [authors, setAuthors] = useState<string[]>([]);
+  const [year, setYear] = useState<number>(new Date().getFullYear());
   const [abstract, setAbstract] = useState('');
   const [doi, setDoi] = useState('');
   const [journal, setJournal] = useState('');
@@ -40,6 +43,8 @@ export const EditArticlePage = () => {
   useEffect(() => {
     if (article) {
       setTitle(article.title);
+      setAuthors(article.authors || []);
+      setYear(article.year || new Date().getFullYear());
       setAbstract(article.abstract);
       setDoi(article.doi || '');
       setJournal(article.journal || '');
@@ -71,12 +76,23 @@ export const EditArticlePage = () => {
     setIsSubmitting(true);
 
     try {
-      updateArticle(id, {
+      let pdfUrl = article.pdfUrl;
+      let s3Filename = article.s3Filename;
+
+      if (pdfFile) {
+        const uploadResponse = await api.uploadPdf(pdfFile);
+        pdfUrl = uploadResponse.url;
+        s3Filename = uploadResponse.s3_filename;
+      }
+
+      await updateArticle(id, {
         title,
-        authors: article.authors,
-        year: article.year,
+        authors: authors.filter(a => a.trim() !== ''),
+        year: isNaN(year) ? new Date().getFullYear() : year,
         abstract,
         pdfFileName: pdfFile?.name || article.pdfFileName,
+        pdfUrl,
+        s3Filename,
         doi: doi || undefined,
         journal: journal || undefined,
         volume: volume || undefined,
@@ -87,12 +103,35 @@ export const EditArticlePage = () => {
 
       toast.success('Статья успешно обновлена!');
       navigate('/my-articles');
-    } catch (error) {
-      toast.error('Ошибка при обновлении статьи');
+    } catch (error: any) {
+      console.error('Error updating article:', error);
+      toast.error(error.message || 'Ошибка при обновлении статьи');
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      await deleteArticle(id);
+      toast.success('Статья удалена');
+      navigate('/my-articles');
+    } catch (error: any) {
+      console.error('Error deleting article:', error);
+      toast.error('Ошибка при удалении статьи');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        </div>
+      </Layout>
+    );
+  }
 
   if (!article) {
     return (
@@ -169,12 +208,7 @@ export const EditArticlePage = () => {
             <Button
               variant="outline"
               className="gap-2 rounded-full px-4 text-red-700 hover:text-red-800 hover:bg-red-50 border-red-700/60"
-              onClick={() => {
-                if (!id) return;
-                deleteArticle(id);
-                toast.success('Статья удалена');
-                navigate('/my-articles');
-              }}
+              onClick={handleDelete}
             >
               <Trash2 className="w-4 h-4" />
               Удалить
@@ -223,6 +257,28 @@ export const EditArticlePage = () => {
                   onChange={(e) => setTitle(e.target.value)}
                   required
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="authors">Авторы</Label>
+                  <Input
+                    id="authors"
+                    type="text"
+                    placeholder="Иванов И.И., Петров П.П."
+                    value={authors.join(', ')}
+                    onChange={(e) => setAuthors(e.target.value.split(',').map(s => s.trim()))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="year">Год публикации</Label>
+                  <Input
+                    id="year"
+                    type="number"
+                    value={year}
+                    onChange={(e) => setYear(parseInt(e.target.value))}
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">

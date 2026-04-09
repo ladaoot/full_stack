@@ -2,11 +2,13 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from typing import Dict
 import uuid
 from ..s3 import s3_service
+from ..auth import get_current_user
+from ..models import User
 
 router = APIRouter(prefix="/files", tags=["files"])
 
 @router.post("/upload-pdf", summary="Upload PDF to S3")
-async def upload_pdf(file: UploadFile = File(...)) -> Dict[str, str]:
+async def upload_pdf(file: UploadFile = File(...), current_user: User = Depends(get_current_user)) -> Dict[str, str]:
     if file.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Only PDF files are allowed")
 

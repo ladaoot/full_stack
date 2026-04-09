@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useArticles } from '../contexts/ArticlesContext';
 import { ArticleCard } from '../components/ArticleCard';
 import { SearchFilters, FilterState } from '../components/SearchFilters';
@@ -6,7 +6,12 @@ import { Layout } from '../components/Layout';
 import { Inbox } from 'lucide-react';
 
 export const HomePage = () => {
-  const { articles } = useArticles();
+  const { articles, isLoading, refreshArticles } = useArticles();
+
+  useEffect(() => {
+    refreshArticles();
+  }, []);
+
   const [filters, setFilters] = useState<FilterState>({
     search: '',
     tags: [],
@@ -62,6 +67,16 @@ export const HomePage = () => {
 
     return result;
   }, [articles, filters]);
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

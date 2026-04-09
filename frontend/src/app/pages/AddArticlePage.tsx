@@ -16,6 +16,7 @@ import { Plus, Save, ArrowLeft } from 'lucide-react';
 import { Citation, Tag, AIMetadata } from '../types';
 import { toast } from 'sonner';
 import { Link } from 'react-router';
+import { api } from '../utils/api';
 
 export const AddArticlePage = () => {
   const navigate = useNavigate();
@@ -24,6 +25,8 @@ export const AddArticlePage = () => {
 
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
+  const [authors, setAuthors] = useState<string[]>([]);
+  const [year, setYear] = useState<number>(new Date().getFullYear());
   const [abstract, setAbstract] = useState('');
   const [doi, setDoi] = useState('');
   const [journal, setJournal] = useState('');
@@ -38,6 +41,8 @@ export const AddArticlePage = () => {
     if (metadata.abstract) setAbstract(metadata.abstract);
     if (metadata.doi) setDoi(metadata.doi);
     if (metadata.journal) setJournal(metadata.journal);
+    if (metadata.authors) setAuthors(metadata.authors);
+    if (metadata.year) setYear(metadata.year);
     
     // Автоматически создаем теги из ключевых слов
     if (metadata.keywords && metadata.keywords.length > 0) {
@@ -68,12 +73,23 @@ export const AddArticlePage = () => {
     setIsSubmitting(true);
 
     try {
-      addArticle({
+      let pdfUrl = '';
+//       let s3Filename = '';
+
+      if (pdfFile) {
+        const uploadResponse = await api.uploadPdf(pdfFile);
+        pdfUrl = uploadResponse.url;
+//         s3Filename = uploadResponse.s3_filename;
+      }
+
+      await addArticle({
         title,
-        authors: [],
-        year: new Date().getFullYear(),
+        authors: authors.filter(a => a.trim() !== ''),
+        year: isNaN(year) ? new Date().getFullYear() : year,
         abstract,
         pdfFileName: pdfFile?.name,
+        pdfUrl,
+//         s3Filename,
         doi: doi || undefined,
         journal: journal || undefined,
         volume: volume || undefined,
@@ -85,8 +101,9 @@ export const AddArticlePage = () => {
 
       toast.success('Статья успешно добавлена!');
       navigate('/my-articles');
-    } catch (error) {
-      toast.error('Ошибка при добавлении статьи');
+    } catch (error: any) {
+      console.error('Error submitting article:', error);
+      toast.error(error.message || 'Ошибка при добавлении статьи');
     } finally {
       setIsSubmitting(false);
     }
@@ -165,6 +182,19 @@ export const AddArticlePage = () => {
                   onChange={(e) => setTitle(e.target.value)}
                   required
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="authors">Авторы</Label>
+                  <Input
+                    id="authors"
+                    type="text"
+                    placeholder="Иванов И.И., Петров П.П."
+                    value={authors.join(', ')}
+                    onChange={(e) => setAuthors(e.target.value.split(',').map(s => s.trim()))}
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">

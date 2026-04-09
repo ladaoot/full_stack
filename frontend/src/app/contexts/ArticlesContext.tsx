@@ -1,13 +1,16 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Article } from '../types';
+import { api } from '../utils/api';
 
 interface ArticlesContextType {
   articles: Article[];
-  addArticle: (article: Omit<Article, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  updateArticle: (id: string, article: Partial<Article>) => void;
-  deleteArticle: (id: string) => void;
+  isLoading: boolean;
+  addArticle: (article: Omit<Article, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateArticle: (id: string, article: Partial<Article>) => Promise<void>;
+  deleteArticle: (id: string) => Promise<void>;
   getArticleById: (id: string) => Article | undefined;
   getUserArticles: (userId: string) => Article[];
+  refreshArticles: () => Promise<void>;
 }
 
 const ArticlesContext = createContext<ArticlesContextType | undefined>(undefined);
@@ -20,132 +23,135 @@ export const useArticles = () => {
   return context;
 };
 
-// Mock данные для демонстрации
-const mockArticles: Article[] = [
-  {
-    id: '1',
-    title: 'Глубокое обучение для обработки естественного языка',
-    authors: ['Иванов И.И.', 'Петров П.П.'],
-    year: 2024,
-    abstract: 'В данной статье рассматриваются современные подходы к применению глубокого обучения в задачах обработки естественного языка. Особое внимание уделяется трансформерным архитектурам и их применению в различных NLP задачах.',
-    pdfFileName: 'deep_learning_nlp_2024.pdf',
-    citations: [
-      {
-        id: 'c1',
-        text: 'Трансформеры показали выдающиеся результаты в задачах машинного перевода',
-        page: 5,
-        createdAt: new Date('2024-01-15')
-      }
-    ],
-    tags: [
-      { id: 't1', name: 'NLP', color: '#3b82f6' },
-      { id: 't2', name: 'Deep Learning', color: '#8b5cf6' },
-      { id: 't3', name: 'Трансформеры', color: '#ec4899' }
-    ],
-    userId: '1',
-    createdAt: new Date('2024-01-10'),
-    updatedAt: new Date('2024-01-10'),
-    doi: '10.1234/example.2024.001',
-    journal: 'Журнал искусственного интеллекта',
-    volume: '15',
-    pages: '123-145'
-  },
-  {
-    id: '2',
-    title: 'Квантовые вычисления: современное состояние и перспективы',
-    authors: ['Сидоров С.С.', 'Козлов К.К.', 'Морозова М.М.'],
-    year: 2023,
-    abstract: 'Обзор современных достижений в области квантовых вычислений. Рассматриваются основные подходы к созданию квантовых компьютеров и их потенциальные применения в криптографии и оптимизации.',
-    pdfFileName: 'quantum_computing_2023.pdf',
-    citations: [
-      {
-        id: 'c2',
-        text: 'Квантовое превосходство было достигнуто в задачах случайной выборки',
-        page: 12,
-        createdAt: new Date('2023-11-20')
-      },
-      {
-        id: 'c3',
-        text: 'Основные проблемы связаны с декогеренцией кубитов',
-        page: 8,
-        createdAt: new Date('2023-11-20')
-      }
-    ],
-    tags: [
-      { id: 't4', name: 'Квантовые вычисления', color: '#10b981' },
-      { id: 't5', name: 'Физика', color: '#f59e0b' },
-      { id: 't6', name: 'Криптография', color: '#ef4444' }
-    ],
-    userId: '2',
-    createdAt: new Date('2023-11-15'),
-    updatedAt: new Date('2023-11-15'),
-    doi: '10.1234/example.2023.042',
-    journal: 'Физический журнал',
-    volume: '78',
-    pages: '234-267'
-  },
-  {
-    id: '3',
-    title: 'Методы машинного обучения в биоинформатике',
-    authors: ['Новикова Н.Н.'],
-    year: 2024,
-    abstract: 'Исследование применения различных методов машинного обучения для анализа геномных данных. Приводятся примеры успешного использования нейронных сетей для предсказания структуры белков.',
-    pdfFileName: 'ml_bioinformatics_2024.pdf',
-    citations: [],
-    tags: [
-      { id: 't7', name: 'Биоинформатика', color: '#06b6d4' },
-      { id: 't8', name: 'Machine Learning', color: '#8b5cf6' },
-      { id: 't9', name: 'Геномика', color: '#14b8a6' }
-    ],
-    userId: '1',
-    createdAt: new Date('2024-02-01'),
-    updatedAt: new Date('2024-02-01'),
-    journal: 'Биоинформатика сегодня',
-    year: 2024
-  }
-];
-
 export const ArticlesProvider = ({ children }: { children: ReactNode }) => {
-  const [articles, setArticles] = useState<Article[]>(() => {
-    const stored = localStorage.getItem('articles');
-    return stored ? JSON.parse(stored, (key, value) => {
-      // Преобразуем строки дат обратно в Date объекты
-      if (key === 'createdAt' || key === 'updatedAt') {
-        return new Date(value);
-      }
-      if (key === 'citations' && Array.isArray(value)) {
-        return value.map(c => ({ ...c, createdAt: new Date(c.createdAt) }));
-      }
-      return value;
-    }) : mockArticles;
-  });
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const refreshArticles = async () => {
+    setIsLoading(true);
+    try {
+      const data = await api.getArticles();
+      // Ensure dates are correctly parsed and fields are mapped
+      const parsedArticles = data.map((a: any) => ({
+        ...a,
+        userId: a.user_id,
+        pdfUrl: a.pdf_url,
+        pdfFileName: a.pdf_filename,
+        s3Filename: a.s3_filename,
+        createdAt: new Date(a.created_at),
+        updatedAt: new Date(a.updated_at),
+        tags: a.tags?.map((t: any) => ({
+          id: t.id,
+          name: t.name,
+          color: t.color
+        })) || [],
+        citations: a.citations?.map((c: any) => ({ ...c, createdAt: new Date(c.created_at || new Date()) })) || []
+      }));
+      setArticles(parsedArticles);
+    } catch (error) {
+      console.error('Failed to fetch articles:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    localStorage.setItem('articles', JSON.stringify(articles));
-  }, [articles]);
+    refreshArticles();
+  }, []);
 
-  const addArticle = (article: Omit<Article, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const newArticle: Article = {
-      ...article,
-      id: Date.now().toString(),
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    setArticles(prev => [newArticle, ...prev]);
+  const addArticle = async (article: Omit<Article, 'id' | 'createdAt' | 'updatedAt'>) => {
+    try {
+      const formattedArticle = {
+        title: article.title,
+        authors: article.authors,
+        year: article.year,
+        abstract: article.abstract,
+        doi: article.doi,
+        journal: article.journal,
+        volume: article.volume,
+        pages: article.pages,
+        pdf_url: article.pdfUrl,
+        pdf_filename: article.pdfFileName,
+        s3_filename: (article as any).s3Filename,
+        tags: article.tags.map(t => ({ name: t.name, color: t.color })),
+        citations: article.citations.map(c => ({ text: c.text, page: c.page })),
+        user_id: article.userId
+      };
+      const a = await api.createArticle(formattedArticle);
+      const newArticle: Article = {
+        ...a,
+        userId: a.user_id,
+        pdfUrl: a.pdf_url,
+        pdfFileName: a.pdf_filename,
+        s3Filename: a.s3_filename,
+        createdAt: new Date(a.created_at),
+        updatedAt: new Date(a.updated_at),
+        tags: a.tags?.map((t: any) => ({
+          id: t.id,
+          name: t.name,
+          color: t.color
+        })) || [],
+        citations: a.citations?.map((c: any) => ({ ...c, createdAt: new Date(c.created_at || new Date()) })) || []
+      };
+      setArticles(prev => [newArticle, ...prev]);
+    } catch (error) {
+      console.error('Failed to add article:', error);
+      throw error;
+    }
   };
 
-  const updateArticle = (id: string, updates: Partial<Article>) => {
-    setArticles(prev =>
-      prev.map(article =>
-        article.id === id
-          ? { ...article, ...updates, updatedAt: new Date() }
-          : article
-      )
-    );
+  const updateArticle = async (id: string, updates: Partial<Article>) => {
+    try {
+      const formattedUpdates = {
+        title: updates.title,
+        authors: updates.authors,
+        year: updates.year,
+        abstract: updates.abstract,
+        doi: updates.doi,
+        journal: updates.journal,
+        volume: updates.volume,
+        pages: updates.pages,
+        pdf_url: updates.pdfUrl,
+        pdf_filename: updates.pdfFileName,
+        s3_filename: (updates as any).s3Filename,
+        tags: updates.tags?.map(t => ({ name: t.name, color: t.color })),
+        citations: updates.citations?.map(c => ({ text: c.text, page: c.page }))
+      };
+      const a = await api.updateArticle(id, formattedUpdates);
+      const updatedArticle: Article = {
+        ...a,
+        userId: a.user_id,
+        pdfUrl: a.pdf_url,
+        pdfFileName: a.pdf_filename,
+        s3Filename: a.s3_filename,
+        createdAt: new Date(a.created_at),
+        updatedAt: new Date(a.updated_at),
+        tags: a.tags?.map((t: any) => ({
+          id: t.id,
+          name: t.name,
+          color: t.color
+        })) || [],
+        citations: a.citations?.map((c: any) => ({ ...c, createdAt: new Date(c.created_at || new Date()) })) || []
+      };
+      setArticles(prev =>
+        prev.map(article =>
+          article.id === id ? updatedArticle : article
+        )
+      );
+    } catch (error) {
+      console.error('Failed to update article:', error);
+      throw error;
+    }
   };
 
-  const deleteArticle = (id: string) => {
-    setArticles(prev => prev.filter(article => article.id !== id));
+  const deleteArticle = async (id: string) => {
+    try {
+      await api.deleteArticle(id);
+      setArticles(prev => prev.filter(article => article.id !== id));
+    } catch (error) {
+      console.error('Failed to delete article:', error);
+      throw error;
+    }
   };
 
   const getArticleById = (id: string) => {
@@ -160,11 +166,13 @@ export const ArticlesProvider = ({ children }: { children: ReactNode }) => {
     <ArticlesContext.Provider
       value={{
         articles,
+        isLoading,
         addArticle,
         updateArticle,
         deleteArticle,
         getArticleById,
-        getUserArticles
+        getUserArticles,
+        refreshArticles
       }}
     >
       {children}

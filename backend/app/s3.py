@@ -71,4 +71,9 @@ class S3Service:
             except ClientError:
                 pass
 
+    async def get_file(self, filename: str) -> bytes:
+        async with await self._get_client() as s3:
+            response = await s3.get_object(Bucket=self.bucket_name, Key=filename)
+            return await response["Body"].read()
+
 s3_service = S3Service()

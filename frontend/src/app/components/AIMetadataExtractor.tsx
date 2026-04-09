@@ -4,6 +4,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Sparkles, Loader2, Check, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from './ui/alert';
+import { api } from '../utils/api';
 
 interface AIMetadataExtractorProps {
   pdfFile: File | null;
@@ -25,27 +26,24 @@ export const AIMetadataExtractor = ({
     setError(null);
 
     try {
-      // Имитация работы ИИ для извлечения метаданных
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const metadata = await api.extractMetadataFromPdf(pdfFile);
 
-      // Mock данные - в реальном приложении здесь будет вызов API к ИИ
-      const mockMetadata: AIMetadata = {
-        title: 'Применение нейронных сетей в обработке изображений',
-        authors: ['Иванов А.А.', 'Петрова Б.Б.'],
-        year: 2024,
-        abstract:
-          'В данной работе представлен новый подход к обработке медицинских изображений ' +
-          'с использованием сверточных нейронных сетей. Предложенная архитектура показывает ' +
-          'улучшенную точность классификации по сравнению с существующими методами.',
-        doi: '10.1234/ai.2024.012',
-        journal: 'Журнал компьютерных наук',
-        // keywords: ['Computer Vision', 'Deep Learning', 'Medical Imaging', 'CNN']
+      // Преобразование ответа API в формат AIMetadata
+      const aiMetadata: AIMetadata = {
+        title: metadata.title || '',
+        authors: metadata.authors || [],
+        year: metadata.year || new Date().getFullYear(),
+        abstract: metadata.abstract || '',
+        doi: metadata.doi || '',
+        journal: metadata.journal || '',
+        keywords: metadata.keywords || []
       };
 
-      onMetadataExtracted(mockMetadata);
+      onMetadataExtracted(aiMetadata);
       setIsExtracted(true);
-    } catch (err) {
-      setError('Ошибка при извлечении метаданных. Попробуйте снова.');
+    } catch (err: any) {
+      console.error('Error extracting metadata:', err);
+      setError(err.message || 'Ошибка при извлечении метаданных. Попробуйте снова.');
     } finally {
       setIsExtracting(false);
     }

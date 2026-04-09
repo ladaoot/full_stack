@@ -10,12 +10,26 @@ import { Link } from 'react-router';
 
 export const MyArticlesPage = () => {
   const { user } = useAuth();
-  const { articles } = useArticles();
+  const { articles, isLoading, refreshArticles } = useArticles();
+
+  React.useEffect(() => {
+    refreshArticles();
+  }, []);
 
   const userArticles = React.useMemo(() => {
     if (!user) return [];
     return articles.filter(article => article.userId === user.id);
   }, [articles, user]);
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
