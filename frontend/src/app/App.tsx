@@ -9,6 +9,7 @@ import { AddArticlePage } from './pages/AddArticlePage';
 import { EditArticlePage } from './pages/EditArticlePage';
 import { MyArticlesPage } from './pages/MyArticlesPage';
 import { ArticleViewPage } from './pages/ArticleViewPage';
+import { MonitoringPage } from './pages/MonitoringPage';
 import { Toaster } from './components/ui/sonner';
 
 // Protected Route Component
@@ -76,6 +77,14 @@ const AppRouter = () => {
           </ProtectedRoute>
         }
       />
+      {/* <Route
+        path="/monitoring"
+        element={
+          <ProtectedRoute>
+            <MonitoringPage />
+          </ProtectedRoute>
+        }
+      /> */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

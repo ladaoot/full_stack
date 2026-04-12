@@ -15,7 +15,6 @@ router = APIRouter(prefix="/articles", tags=["articles"])
 async def list_articles(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     result = await db.execute(
         select(Article)
-        # .where(Article.user_id == current_user.id)
         .options(selectinload(Article.citations), selectinload(Article.tags))
     )
     articles = result.scalars().all()
@@ -26,7 +25,6 @@ async def get_article(article_id: UUID, db: AsyncSession = Depends(get_db), curr
     result = await db.execute(
         select(Article)
         .where(Article.id == article_id)
-        # .where(Article.user_id == current_user.id)
         .options(selectinload(Article.citations), selectinload(Article.tags))
     )
     article = result.scalar_one_or_none()
