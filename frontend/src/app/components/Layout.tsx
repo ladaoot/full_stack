@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
-import { BookOpen, Home, Plus, Library, LogOut, User } from 'lucide-react';
+import { BookOpen, Home, Plus, Library, LogOut, User, Activity } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -67,6 +67,20 @@ export const Layout = ({ children }: LayoutProps) => {
                     <Link to="/my-articles">
                       <Library className="w-4 h-4" />
                       Мои статьи
+                    </Link>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={[
+                      "gap-2 rounded-full border-black/60 px-4",
+                      isActive('/monitoring') ? "bg-neutral-200" : "bg-white",
+                    ].join(" ")}
+                    asChild
+                  >
+                    <Link to="/monitoring">
+                      <Activity className="w-4 h-4" />
+                      Мониторинг
                     </Link>
                   </Button>
                 </nav>
@@ -139,6 +153,20 @@ export const Layout = ({ children }: LayoutProps) => {
               <Link to="/add-article">
                 <Plus className="w-5 h-5" />
                 <span className="text-xs mt-1">Добавить</span>
+              </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={[
+                "flex-col h-auto py-2 rounded-xl",
+                isActive('/monitoring') ? "bg-neutral-200" : "bg-transparent",
+              ].join(" ")}
+              asChild
+            >
+              <Link to="/monitoring">
+                <Activity className="w-5 h-5" />
+                <span className="text-xs mt-1">Мониторинг</span>
               </Link>
             </Button>
           </div>

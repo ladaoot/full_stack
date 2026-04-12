@@ -1,11 +1,13 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { User } from '../types';
+import { api } from '../utils/api';
 
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
   logout: () => void;
+  isLoading: boolean;
   isAuthenticated: boolean;
 }
 
@@ -20,44 +22,52 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(() => {
-    const storedUser = localStorage.getItem('user');
-    return storedUser ? JSON.parse(storedUser) : null;
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
+      
+      if (token && storedUser) {
+        try {
+          // Verify token by fetching current user
+          const userData = await api.getMe();
+          setUser(userData);
+          localStorage.setItem('user', JSON.stringify(userData));
+        } catch (error) {
+          console.error('Auth verification failed:', error);
+          logout();
+        }
+      }
+      setIsLoading(false);
+    };
+
+    checkAuth();
+  }, []);
 
   const login = async (email: string, password: string) => {
-    // Mock login - в реальном приложении здесь будет API вызов
-    await new Promise(resolve => setTimeout(resolve, 500));
+    const response = await api.login(email, password);
     
-    const mockUser: User = {
-      id: '1',
-      email,
-      name: email.split('@')[0],
-      affiliation: 'Кафедра компьютерных наук'
-    };
+    const userData: User = response.user;
+    const token: string = response.access_token;
     
-    setUser(mockUser);
-    localStorage.setItem('user', JSON.stringify(mockUser));
+    setUser(userData);
+    localStorage.setItem('user', JSON.stringify(userData));
+    localStorage.setItem('token', token);
   };
 
   const register = async (email: string, password: string, name: string) => {
-    // Mock registration
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const mockUser: User = {
-      id: Date.now().toString(),
-      email,
-      name,
-      affiliation: 'Кафедра компьютерных наук'
-    };
-    
-    setUser(mockUser);
-    localStorage.setItem('user', JSON.stringify(mockUser));
+    await api.register(email, password, name);
+    // After registration, automatically login
+    await login(email, password);
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
   };
 
   return (
@@ -67,6 +77,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         login,
         register,
         logout,
+        isLoading,
         isAuthenticated: !!user
       }}
     >

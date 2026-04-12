@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-S3_ENDPOINT_URL = os.getenv("S3_ENDPOINT_URL", "http://localhost:9000")
+S3_ENDPOINT_URL = os.getenv("S3_ENDPOINT_URL", "http://localhost:9001")
 S3_ACCESS_KEY = os.getenv("S3_ACCESS_KEY", "minioadmin")
 S3_SECRET_KEY = os.getenv("S3_SECRET_KEY", "minioadmin")
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME", "articles")
@@ -70,5 +70,10 @@ class S3Service:
                 await s3.delete_object(Bucket=self.bucket_name, Key=filename)
             except ClientError:
                 pass
+
+    async def get_file(self, filename: str) -> bytes:
+        async with await self._get_client() as s3:
+            response = await s3.get_object(Bucket=self.bucket_name, Key=filename)
+            return await response["Body"].read()
 
 s3_service = S3Service()

@@ -26,6 +26,7 @@ export interface Article {
   abstract: string;
   pdfUrl?: string;
   pdfFileName?: string;
+  s3Filename?: string;
   citations: Citation[];
   tags: Tag[];
   userId: string;
